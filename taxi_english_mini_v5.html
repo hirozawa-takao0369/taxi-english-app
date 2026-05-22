@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Taxi English Mini v5</title>
+  <title>Taxi English Mini v6</title>
   <style>
     body { margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#f6f7fb; color:#111827; }
     .app { max-width:480px; margin:0 auto; padding:16px; }
     h1 { margin:8px 0 0; font-size:26px; }
     .sub { color:#64748b; font-size:14px; margin-bottom:14px; }
-    .tabs { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:14px; }
+    .tabs { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:14px; }
     button { border:0; border-radius:16px; padding:12px 6px; font-weight:700; background:#111827; color:white; font-size:12px; }
     button.secondary { background:white; color:#111827; border:1px solid #d1d5db; }
     button.danger { background:#ef4444; color:white; }
@@ -47,6 +47,7 @@
     <button class="secondary" onclick="showTab('add')">追加</button>
     <button class="secondary" onclick="showTab('bulk')">一括</button>
     <button class="secondary" onclick="showTab('category')">分類</button>
+    <button class="secondary" onclick="showTab('backup')">保存</button>
   </div>
 
   <section id="home">
@@ -58,11 +59,11 @@
       </div>
     </div>
     <div class="card">
-      <div class="en">v5 追加機能</div>
-      <div class="box">問題画面に「発音チェック」を追加。
-例文を読み上げると、スマホの音声認識で聞き取れた英文と正解文を比べます。
+      <div class="en">v6 追加機能</div>
+      <div class="box">発音チェックに加えて、バックアップ・復元機能を追加。
 
-注意：これは本格的な発音採点ではなく「相手のスマホにどう聞き取られたか」の簡易チェックです。</div>
+「保存」タブで、今まで追加した例文とカテゴリーを全部コピーできます。
+アプリを作り直した時は、そのデータを貼り付けて復元できます。</div>
     </div>
   </section>
 
@@ -121,6 +122,31 @@
     </div>
   </section>
 
+
+  <section id="backup" class="hidden">
+    <div class="card">
+      <div class="en">バックアップ</div>
+      <div class="small">今の例文・カテゴリーを全部コピーして、メモ帳やGoogle Keepなどに保存してください。</div>
+      <button onclick="makeBackup()">バックアップを作る</button>
+      <textarea id="backupText" placeholder="ここにバックアップデータが出ます" style="min-height:220px; margin-top:10px;"></textarea>
+      <button class="secondary" onclick="copyBackup()">コピーする</button>
+    </div>
+
+    <div class="card">
+      <div class="en">復元</div>
+      <div class="small">バックアップしたデータを貼り付けて「復元する」を押すと、例文とカテゴリーを戻せます。</div>
+      <textarea id="restoreText" placeholder="ここにバックアップデータを貼り付け" style="min-height:180px;"></textarea>
+      <button onclick="restoreBackup()">復元する</button>
+      <div id="restoreResult" class="box hidden"></div>
+    </div>
+
+    <div class="card">
+      <div class="en">注意</div>
+      <div class="box">復元すると、現在アプリに入っているデータはバックアップ内容に置き換わります。
+不安な時は、先に「バックアップを作る」を押して今のデータを保存してください。</div>
+    </div>
+  </section>
+
   <section id="category" class="hidden">
     <div class="card">
       <div class="en">カテゴリーを追加</div>
@@ -156,7 +182,7 @@ function save(){
 }
 
 function showTab(id){
-  ["home","list","quiz","add","bulk","category"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+  ["home","list","quiz","add","bulk","category","backup"].forEach(x=>document.getElementById(x).classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
   refreshUI();
 }
@@ -411,6 +437,66 @@ function renderCategories(){
     }
     area.appendChild(div);
   });
+}
+
+
+function makeBackup(){
+  const data = {
+    version: "taxi_english_mini_v6",
+    exportedAt: new Date().toISOString(),
+    categories: categories,
+    phrases: phrases
+  };
+  document.getElementById("backupText").value = JSON.stringify(data, null, 2);
+}
+
+async function copyBackup(){
+  const txt = document.getElementById("backupText").value;
+  if(!txt){
+    alert("先に「バックアップを作る」を押してください");
+    return;
+  }
+  try{
+    await navigator.clipboard.writeText(txt);
+    alert("バックアップデータをコピーしました");
+  }catch(e){
+    alert("コピーできませんでした。長押しで手動コピーしてください。");
+  }
+}
+
+function restoreBackup(){
+  const result = document.getElementById("restoreResult");
+  result.classList.remove("hidden");
+  try{
+    const raw = document.getElementById("restoreText").value.trim();
+    if(!raw) throw new Error("復元データが空です");
+    const data = JSON.parse(raw);
+
+    let newPhrases;
+    let newCategories;
+
+    if(Array.isArray(data)){
+      newPhrases = data.map(normalizePhrase).filter(p => p.driver && p.jp);
+      newCategories = ["全部", ...Array.from(new Set(newPhrases.map(p => p.scene).filter(Boolean)))];
+    } else {
+      if(!Array.isArray(data.phrases)) throw new Error("phrases が見つかりません");
+      newPhrases = data.phrases.map(normalizePhrase).filter(p => p.driver && p.jp);
+      newCategories = Array.isArray(data.categories) ? data.categories.map(String) : ["全部"];
+      if(!newCategories.includes("全部")) newCategories.unshift("全部");
+      newPhrases.forEach(p => { if(!newCategories.includes(p.scene)) newCategories.push(p.scene); });
+    }
+
+    if(newPhrases.length === 0) throw new Error("復元できる例文がありません");
+
+    phrases = newPhrases;
+    categories = newCategories;
+    activeScene = "全部";
+    save();
+    refreshUI();
+    result.textContent = `復元しました。\n例文：${phrases.length}件\nカテゴリー：${categories.length}件`;
+  }catch(e){
+    result.textContent = "復元エラー：\n" + e.message + "\n\nバックアップデータ全体を正しく貼り付けてください。";
+  }
 }
 
 refreshUI();
