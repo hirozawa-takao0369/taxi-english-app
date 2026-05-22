@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Taxi English Mini v8.2 Plus Category Delete</title>
+<style>
+body{font-family:sans-serif;background:#f4f6fb;margin:0;padding:16px;color:#111827}
+.app{max-width:500px;margin:auto}
+.card{background:white;border-radius:24px;padding:18px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,.05)}
+h1{font-size:34px;margin:0 0 6px}.sub{color:#64748b;margin-bottom:14px}
+.big{font-size:30px;font-weight:800;line-height:1.35}
+.jp{font-size:21px;margin:12px 0;line-height:1.5}
+.btns,.row{display:flex;gap:10px;margin:12px 0}
+button{border:none;border-radius:16px;padding:14px;font-weight:bold;font-size:15px}
+.dark{background:#0f172a;color:white;flex:1}.green{background:#16a34a;color:white;flex:1}
+.red{background:#ef4444;color:white}.white{background:white;border:1px solid #ccc;color:#111827}
+.gray{background:#eef2ff;padding:12px;border-radius:14px;margin-top:10px;line-height:1.55}
+.core{background:#fff7ed}.good{background:#dcfce7}.mid{background:#fef9c3}.bad{background:#fee2e2}
+input,textarea,select{width:100%;padding:12px;margin-top:10px;border-radius:14px;border:1px solid #ccc;box-sizing:border-box;font-size:16px}
+.save{width:100%;background:#111827;color:white;font-size:20px;margin-top:12px}
+.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:16px}
+.tabs button{background:white;border:1px solid #ccc;min-width:90px;color:#111827}
+.tabs button.active{background:#111827!important;color:white}
+.small{font-size:13px;color:#64748b;line-height:1.5}
+details{background:white;border-radius:24px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,.05);overflow:hidden}
+summary{padding:18px;font-size:22px;font-weight:800;cursor:pointer}
+.detailsBody{padding:0 18px 18px}
+.catBox{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#f1f5f9;border-radius:14px;padding:12px;margin-top:10px}
+.catBox button{padding:10px 12px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+<h1>🚕 Taxi English Mini v8.2 Plus</h1>
+<div class="sub">カテゴリー削除対応版</div>
+
+<div class="tabs" id="tabs"></div>
+
+<details>
+<summary>カテゴリー追加 / 削除</summary>
+<div class="detailsBody">
+<div class="small">追加したいカテゴリーを入力。削除しても、そのカテゴリー内の例文は削除されません。</div>
+<input id="newCategory" placeholder="例：空港 / 荷物 / トラブル">
+<button class="save" onclick="addCategory()">カテゴリーを追加</button>
+<div id="categoryManager"></div>
+</div>
+</details>
+
+<details>
+<summary>例文追加 / 編集</summary>
+<div class="detailsBody">
+<select id="category"></select>
+<textarea id="english" placeholder="英語"></textarea>
+<textarea id="japanese" placeholder="日本語"></textarea>
+<textarea id="chunk" placeholder="音の塊"></textarea>
+<textarea id="reply" placeholder="客の返答"></textarea>
+<textarea id="context" placeholder="文脈"></textarea>
+<textarea id="core" placeholder="単語コアイメージ"></textarea>
+<textarea id="grammar" placeholder="文法・構造"></textarea>
+<button class="save" onclick="saveItem()">保存する</button>
+</div>
+</details>
+
+<div id="list"></div>
+</div>
+
+<script>
+const defaultCategories=["全部","降車位置","支払い","画面案内","温度調整","侵入不可","渋滞","世間話"];
+
+const starter=[
+{category:"降車位置",english:"Could I drop you off here?",japanese:"ここで降ろしてもよろしいですか？",chunk:"クダイ / ドロップユオフ / ヒア",reply:"That's fine. / No problem.",context:"安全に停められる場所で降車確認。",core:"drop off = 車で人を降ろす",grammar:"Could I + 動詞原形 = 私が〜してもよいですか？"},
+{category:"支払い",english:"How would you like to pay?",japanese:"お支払い方法はいかがなさいますか？",chunk:"ハウ / ウッジューライク / トゥペイ",reply:"By card, please.",context:"支払い方法確認。",core:"pay = 支払う",grammar:"How would you like to〜? = どのように〜したいですか？"},
+{category:"画面案内",english:"Please check the screen.",japanese:"画面をご確認ください。",chunk:"プリーズチェック / ザスクリーン",reply:"Okay.",context:"決済端末やナビ画面の確認。",core:"screen = 画面",grammar:"Please + 動詞原形"},
+{category:"温度調整",english:"Is the temperature okay?",japanese:"温度は大丈夫ですか？",chunk:"イズザ / テンパチャー / オウケイ",reply:"It's fine.",context:"車内温度確認。",core:"temperature = 温度",grammar:"Is + 名詞 + okay?"},
+{category:"侵入不可",english:"Cars are not allowed there.",japanese:"そこは車が入れません。",chunk:"カーズアーノット / アラウドゼア",reply:"I see.",context:"車両進入不可。",core:"not allowed = 許可されていない",grammar:"be allowed = 許可されている"},
+{category:"渋滞",english:"There is heavy traffic now.",japanese:"現在かなり渋滞しています。",chunk:"ゼアリズ / ヘヴィトラフィック / ナウ",reply:"Okay.",context:"渋滞説明。",core:"traffic = 交通・渋滞",grammar:"There is + 名詞"},
+{category:"世間話",english:"Is this your first time in Japan?",japanese:"日本は初めてですか？",chunk:"イズディスユア / ファーストタイム / インジャパン",reply:"Yes, it is.",context:"軽い世間話。",core:"first time = 初めて",grammar:"Is this your first time〜?"}
+];
+
+let data=JSON.parse(localStorage.getItem("taxi82plusData")||"null");
+let categories=JSON.parse(localStorage.getItem("taxi82plusCategories")||"null");
+if(!categories){categories=defaultCategories.slice();}
+if(!data){data=starter.slice(); localStorage.setItem("taxi82plusData",JSON.stringify(data));}
+let currentCategory="全部";
+let editIndex=-1;
+
+function saveAll(){
+ localStorage.setItem("taxi82plusData",JSON.stringify(data));
+ localStorage.setItem("taxi82plusCategories",JSON.stringify(categories));
+}
+
+function renderCategorySelect(){
+ const sel=document.getElementById("category");
+ sel.innerHTML="";
+ categories.filter(c=>c!=="全部").forEach(c=>{
+  const o=document.createElement("option");
+  o.textContent=c;
+  sel.appendChild(o);
+ });
+}
+
+function renderTabs(){
+ const tabs=document.getElementById("tabs");
+ tabs.innerHTML="";
+ categories.forEach(cat=>{
+  const b=document.createElement("button");
+  b.textContent=cat;
+  if(currentCategory===cat)b.className="active";
+  b.onclick=()=>{currentCategory=cat;renderTabs();render();}
+  tabs.appendChild(b);
+ });
+}
+
+function renderCategoryManager(){
+ const area=document.getElementById("categoryManager");
+ area.innerHTML="";
+ categories.filter(c=>c!=="全部").forEach(c=>{
+  const div=document.createElement("div");
+  div.className="catBox";
+  div.innerHTML="<span>"+c+"</span>";
+  const btn=document.createElement("button");
+  btn.className="red";
+  btn.textContent="削除";
+  btn.onclick=()=>deleteCategory(c);
+  div.appendChild(btn);
+  area.appendChild(div);
+ });
+}
+
+function addCategory(){
+ const name=document.getElementById("newCategory").value.trim();
+ if(!name)return alert("カテゴリー名を入力してください");
+ if(categories.includes(name))return alert("そのカテゴリーは既にあります");
+ categories.push(name);
+ document.getElementById("newCategory").value="";
+ saveAll();
+ renderAll();
+}
+
+function deleteCategory(name){
+ if(name==="全部")return alert("全部は削除できません");
+ if(!confirm("カテゴリー「"+name+"」を削除しますか？\n※そのカテゴリー内の例文は削除されません。\n※例文側のカテゴリー名はそのまま残ります。"))return;
+
+ categories=categories.filter(c=>c!==name);
+ if(currentCategory===name)currentCategory="全部";
+ saveAll();
+ renderAll();
+}
+
+function render(){
+ const list=document.getElementById("list");
+ list.innerHTML="";
+ data.forEach((item,index)=>{
+  if(currentCategory!=="全部" && item.category!==currentCategory)return;
+  list.innerHTML+=`
+  <div class="card">
+    <div style="color:#64748b;font-weight:bold">${item.category}</div>
+    <div class="big">${item.english}</div>
+    <div class="jp">${item.japanese}</div>
+    <div class="btns">
+      <button class="dark" onclick='speak(${JSON.stringify(item.english)})'>音声で聞く</button>
+      <button class="green" onclick='checkPronunciation(${JSON.stringify(item.english)}, ${index})'>発音チェック</button>
+    </div>
+    <div id="pron_${index}"></div>
+    <div class="gray">音の塊：${item.chunk}</div>
+    <div class="gray">客の返答：${item.reply}</div>
+    <div class="gray">文脈：${item.context}</div>
+    <div class="gray core">単語コアイメージ：${item.core}</div>
+    <div class="gray">文法・構造：${item.grammar}</div>
+    <div class="row">
+      <button class="white" onclick="editItem(${index})">編集</button>
+      <button class="red" onclick="deleteItem(${index})">削除</button>
+    </div>
+  </div>`;
+ });
+}
+
+function renderAll(){
+ renderCategorySelect();
+ renderTabs();
+ renderCategoryManager();
+ render();
+}
+
+function saveItem(){
+ const item={category:category.value,english:english.value,japanese:japanese.value,chunk:chunk.value,reply:reply.value,context:context.value,core:core.value,grammar:grammar.value};
+ if(!item.english||!item.japanese)return alert("英語と日本語は入れてください");
+ if(editIndex===-1){data.unshift(item);}else{data[editIndex]=item;editIndex=-1;}
+ if(!categories.includes(item.category))categories.push(item.category);
+ saveAll();
+ clearForm();
+ renderAll();
+}
+
+function editItem(i){
+ const x=data[i];
+ editIndex=i;
+ if(!categories.includes(x.category)){categories.push(x.category);saveAll();}
+ renderCategorySelect();
+ category.value=x.category;
+ english.value=x.english;
+ japanese.value=x.japanese;
+ chunk.value=x.chunk;
+ reply.value=x.reply;
+ context.value=x.context;
+ core.value=x.core;
+ grammar.value=x.grammar;
+ document.querySelectorAll("details")[1].open=true;
+ window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function deleteItem(i){
+ if(!confirm("例文を削除しますか？"))return;
+ data.splice(i,1);
+ saveAll();
+ renderAll();
+}
+
+function clearForm(){
+ english.value="";
+ japanese.value="";
+ chunk.value="";
+ reply.value="";
+ context.value="";
+ core.value="";
+ grammar.value="";
+}
+
+function speak(t){
+ const u=new SpeechSynthesisUtterance(t);
+ u.lang="en-US";
+ speechSynthesis.speak(u);
+}
+
+function normalizeText(s){
+ return String(s||"").toLowerCase().replace(/[’']/g,"").replace(/cannot/g,"cant").replace(/can't/g,"cant").replace(/[^a-z0-9\\s]/g," ").replace(/\\s+/g," ").trim();
+}
+
+function scoreText(correct,heard){
+ const a=normalizeText(correct).split(" ").filter(Boolean);
+ const b=normalizeText(heard).split(" ").filter(Boolean);
+ if(!a.length||!b.length)return 0;
+ let hit=0;
+ a.forEach(w=>{if(b.includes(w))hit++;});
+ return Math.round(hit/a.length*100);
+}
+
+function checkPronunciation(t,index){
+ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+ const box=document.getElementById("pron_"+index);
+ box.innerHTML='<div class="gray">聞き取り中です。英語を読んでください...</div>';
+
+ if(!SR){
+  box.innerHTML='<div class="gray bad">このブラウザは音声認識に対応していません。Chromeで開いてください。</div>';
+  return;
+ }
+
+ const r=new SR();
+ r.lang="en-US";
+ r.interimResults=false;
+ r.maxAlternatives=1;
+
+ r.onresult=e=>{
+  const heard=e.results[0][0].transcript;
+  const score=scoreText(t,heard);
+  let cls="good";
+  let evalText="かなり良いです";
+  if(score<60){cls="bad"; evalText="もう一度ゆっくり読んでみてください";}
+  else if(score<85){cls="mid"; evalText="だいたい通じています。抜けた音を確認してください";}
+  box.innerHTML='<div class="gray '+cls+'">正解： '+t+'<br><br>スマホが聞き取った英語： '+heard+'<br><br>一致度： '+score+'%<br>評価： '+evalText+'</div>';
+ };
+
+ r.onerror=e=>{
+  box.innerHTML='<div class="gray bad">音声認識エラー：'+e.error+'<br><br>マイク許可・Chrome・GitHub PagesのURLを確認してください。</div>';
+ };
+
+ try{r.start();}catch(err){
+  box.innerHTML='<div class="gray bad">音声認識を開始できませんでした。ページ更新後に再試行してください。</div>';
+ }
+}
+
+renderAll();
+</script>
+</body>
+</html>
