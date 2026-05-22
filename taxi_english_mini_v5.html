@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taxi English Mini v5</title>
+  <style>
+    body { margin:0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background:#f6f7fb; color:#111827; }
+    .app { max-width:480px; margin:0 auto; padding:16px; }
+    h1 { margin:8px 0 0; font-size:26px; }
+    .sub { color:#64748b; font-size:14px; margin-bottom:14px; }
+    .tabs { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:14px; }
+    button { border:0; border-radius:16px; padding:12px 6px; font-weight:700; background:#111827; color:white; font-size:12px; }
+    button.secondary { background:white; color:#111827; border:1px solid #d1d5db; }
+    button.danger { background:#ef4444; color:white; }
+    button.green { background:#16a34a; }
+    .card { background:white; border-radius:22px; padding:16px; margin-bottom:12px; box-shadow:0 2px 10px rgba(0,0,0,.06); }
+    .scene { font-size:12px; color:#64748b; margin-bottom:6px; }
+    .en { font-weight:800; font-size:18px; line-height:1.45; }
+    .jp { margin-top:8px; line-height:1.5; }
+    .box { background:#f1f5f9; border-radius:16px; padding:12px; margin-top:10px; font-size:14px; line-height:1.5; white-space:pre-wrap; }
+    .core { background:#fff7ed; }
+    .grammar { background:#eef2ff; }
+    .scoreGood { background:#dcfce7; }
+    .scoreMid { background:#fef9c3; }
+    .scoreBad { background:#fee2e2; }
+    input, textarea, select { width:100%; box-sizing:border-box; border:1px solid #d1d5db; border-radius:14px; padding:12px; font-size:16px; margin:6px 0; }
+    textarea { min-height:72px; }
+    #bulkJson { min-height:220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .hidden { display:none; }
+    .pillrow { display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; }
+    .pill { white-space:nowrap; padding:9px 12px; border-radius:999px; background:white; border:1px solid #d1d5db; color:#111827; }
+    .active { background:#111827; color:white; }
+    .small { font-size:12px; color:#64748b; line-height:1.5; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <h1>Taxi English Mini</h1>
+  <div class="sub">小さく始めて、地道に積み上げる</div>
+
+  <div class="tabs">
+    <button onclick="showTab('home')">Home</button>
+    <button class="secondary" onclick="showTab('list')">一覧</button>
+    <button class="secondary" onclick="quiz()">問題</button>
+    <button class="secondary" onclick="showTab('add')">追加</button>
+    <button class="secondary" onclick="showTab('bulk')">一括</button>
+    <button class="secondary" onclick="showTab('category')">分類</button>
+  </div>
+
+  <section id="home">
+    <div class="card">
+      <div class="en">今日の練習</div>
+      <div class="row">
+        <button onclick="quiz()">ランダム問題</button>
+        <button class="secondary" onclick="showTab('bulk')">一括追加</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="en">v5 追加機能</div>
+      <div class="box">問題画面に「発音チェック」を追加。
+例文を読み上げると、スマホの音声認識で聞き取れた英文と正解文を比べます。
+
+注意：これは本格的な発音採点ではなく「相手のスマホにどう聞き取られたか」の簡易チェックです。</div>
+    </div>
+  </section>
+
+  <section id="list" class="hidden">
+    <input id="search" placeholder="検索：例 could / here / would like / 左上 / 温度" oninput="renderList()" />
+    <div class="pillrow" id="scenePills"></div>
+    <div id="listArea"></div>
+  </section>
+
+  <section id="quiz" class="hidden">
+    <div class="card">
+      <div class="scene" id="qScene"></div>
+      <div class="en">英語で何と言う？</div>
+      <div class="box" id="qJp"></div>
+      <div class="row">
+        <button onclick="toggleAnswer()">答えを見る</button>
+        <button class="secondary" onclick="quiz()">次の問題</button>
+      </div>
+      <div id="answer" class="hidden">
+        <div class="en" id="qEn" style="margin-top:14px;"></div>
+        <button style="margin-top:10px" onclick="speak(current.driver)">音声で聞く</button>
+        <button class="green" style="margin-top:10px" onclick="startPronunciationCheck()">発音チェック</button>
+        <div id="pronunciationResult" class="box hidden"></div>
+        <div class="box" id="qSound"></div>
+        <div class="box" id="qPassenger"></div>
+        <div class="box" id="qNote"></div>
+        <div class="box core" id="qCore"></div>
+        <div class="box grammar" id="qGrammar"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="add" class="hidden">
+    <div class="card">
+      <div class="en">新しい例文を追加</div>
+      <select id="fScene"></select>
+      <textarea id="fDriver" placeholder="英語例文"></textarea>
+      <textarea id="fJp" placeholder="日本語訳"></textarea>
+      <textarea id="fPassenger" placeholder="客の返答例"></textarea>
+      <textarea id="fNote" placeholder="it / here / 文脈メモ"></textarea>
+      <textarea id="fCore" placeholder="単語コアイメージ"></textarea>
+      <textarea id="fGrammar" placeholder="文法・構造解説"></textarea>
+      <input id="fSound" placeholder="音の塊メモ" />
+      <button onclick="addPhrase()">追加する</button>
+    </div>
+  </section>
+
+  <section id="bulk" class="hidden">
+    <div class="card">
+      <div class="en">一括追加</div>
+      <div class="small">ChatGPTが作ったJSONをここに貼り付けてください。</div>
+      <textarea id="bulkJson"></textarea>
+      <button onclick="bulkImport()">一括追加する</button>
+      <button class="secondary" style="margin-top:8px" onclick="fillSample()">サンプルを入れる</button>
+      <div id="bulkResult" class="box hidden"></div>
+    </div>
+  </section>
+
+  <section id="category" class="hidden">
+    <div class="card">
+      <div class="en">カテゴリーを追加</div>
+      <input id="newCategory" placeholder="新しいカテゴリー名" />
+      <button onclick="addCategory()">カテゴリー追加</button>
+    </div>
+    <div class="card">
+      <div class="en">カテゴリー一覧</div>
+      <div id="categoryList"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const basePhrases = [
+ {scene:"降車位置", driver:"Could I drop you off here?", jp:"ここで降ろしてもよろしいですか？", passenger:"That’s fine. / No problem.", note:"here = 今いるこの場所。運転手がこの地点で降車してよいか確認している。", core:"could = 可能性をやわらかくする / drop off = 車で人を降ろす / here = 今いる場所", grammar:"Could I + 動詞原形 = 私が〜してもいいですか？ Could you なら相手へのお願い。", sound:"クダイ / ドロピュオフ / ヒア"},
+ {scene:"支払い", driver:"How would you like to pay?", jp:"お支払い方法はいかがなさいますか？", passenger:"By card. / Cash, please.", note:"how = 支払い方法を聞いている。", core:"would like = want の丁寧版 / pay = 支払う / how = 方法", grammar:"How would you like to + 動詞原形？ = どのように〜なさいますか？", sound:"ハウ / ウッジューライク / トゥペイ"},
+ {scene:"画面案内", driver:"Please tap the credit card icon in the top left corner of the screen.", jp:"画面左上のクレジットカードアイコンをタップしてください。", passenger:"OK. / I see it.", note:"in the top left corner = 左上の角の中。of the screen = その画面の。", core:"tap = 画面を軽く押す / icon = アイコン / corner = 角 / screen = 画面", grammar:"Please + 動詞原形 = 〜してください。in the 〇〇 of the 〇〇 = 大きな場所の中の一部分。", sound:"プリーズタップ / ザ クレディッカード アイコン / インザ トップレフト コーナー / オブザ スクリーン"},
+ {scene:"温度調整", driver:"Is the temperature OK?", jp:"温度は大丈夫ですか？", passenger:"It’s fine. / A little colder, please.", note:"temperature = 車内温度。it と言われたら温度や空調状態を指すことが多い。", core:"temperature = 温度 / OK = 問題ない・大丈夫", grammar:"Is + 名詞 + OK? = 〜は大丈夫ですか？", sound:"イズザ / テンパチャー / オウケイ"},
+ {scene:"進入不可", driver:"Taxis can’t enter the terminal, so I’ll have to drop you off near your destination.", jp:"タクシーはターミナルに入れないので、目的地の近くで降ろさないといけません。", passenger:"That’s OK. / How far is it from here?", note:"near your destination = 目的地そのものではなく近く。", core:"enter = 入る / terminal = ターミナル / have to = 状況的に必要 / destination = 目的地", grammar:"so = だから。I’ll have to + 動詞原形 = 〜しないといけません。", sound:"タクシーズ キャント エンター / ザ ターミナル / ソウ アイル ハフトゥー / ドロップユーオフ"}
+];
+
+const defaultCategories = ["全部","降車位置","支払い","画面案内","温度調整","進入不可","渋滞","世間話"];
+
+let phrases = JSON.parse(localStorage.getItem("taxiPhrases") || "null") || basePhrases;
+let categories = JSON.parse(localStorage.getItem("taxiCategories") || "null") || defaultCategories;
+let current = phrases[0];
+let activeScene = "全部";
+
+function save(){
+  localStorage.setItem("taxiPhrases", JSON.stringify(phrases));
+  localStorage.setItem("taxiCategories", JSON.stringify(categories));
+}
+
+function showTab(id){
+  ["home","list","quiz","add","bulk","category"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  refreshUI();
+}
+
+function refreshUI(){
+  renderSceneSelect();
+  renderCategories();
+  if(!document.getElementById("list").classList.contains("hidden")) renderList();
+}
+
+function speak(text){
+  if(!window.speechSynthesis) return alert("このブラウザは音声読み上げに未対応です");
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = 0.82;
+  speechSynthesis.speak(u);
+}
+
+function esc(s){ return String(s || "").replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+function renderSceneSelect(){
+  const sel = document.getElementById("fScene");
+  if(!sel) return;
+  sel.innerHTML = "";
+  categories.filter(c => c !== "全部").forEach(c => {
+    const opt = document.createElement("option");
+    opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
+
+function renderPills(){
+ const el=document.getElementById("scenePills"); el.innerHTML="";
+ categories.forEach(s=>{
+   const b=document.createElement("button"); b.textContent=s; b.className="pill"+(s===activeScene?" active":"");
+   b.onclick=()=>{ activeScene=s; renderList(); };
+   el.appendChild(b);
+ });
+}
+
+function searchText(p){
+  return [p.scene,p.driver,p.jp,p.passenger,p.note,p.core,p.grammar,p.sound].join(" ").toLowerCase();
+}
+
+function filtered(){
+ const q=(document.getElementById("search")?.value || "").toLowerCase();
+ return phrases.filter(p=>(activeScene==="全部"||p.scene===activeScene) && searchText(p).includes(q));
+}
+
+function renderList(){
+ renderPills();
+ const area=document.getElementById("listArea"); area.innerHTML="";
+ filtered().forEach((p)=>{
+  const div=document.createElement("div"); div.className="card";
+  div.innerHTML=`<div class="scene">${esc(p.scene)}</div>
+  <div class="en">${esc(p.driver)}</div>
+  <div class="jp">${esc(p.jp)}</div>
+  <div class="box">客の返答：${esc(p.passenger)}</div>
+  <div class="box">文脈：${esc(p.note)}</div>
+  <div class="box core">単語コアイメージ：${esc(p.core)}</div>
+  <div class="box grammar">文法・構造：${esc(p.grammar)}</div>`;
+  const btn=document.createElement("button"); btn.textContent="音声で聞く"; btn.onclick=()=>speak(p.driver);
+  div.appendChild(btn); area.appendChild(div);
+ });
+}
+
+function quiz(){
+ const pool=filtered().length?filtered():phrases;
+ current=pool[Math.floor(Math.random()*pool.length)];
+ document.getElementById("qScene").textContent=current.scene;
+ document.getElementById("qJp").textContent=current.jp;
+ document.getElementById("qEn").textContent=current.driver;
+ document.getElementById("qSound").textContent="音の塊：" + (current.sound || "");
+ document.getElementById("qPassenger").textContent="客の返答：" + (current.passenger || "");
+ document.getElementById("qNote").textContent="文脈：" + (current.note || "");
+ document.getElementById("qCore").textContent="単語コアイメージ：" + (current.core || "");
+ document.getElementById("qGrammar").textContent="文法・構造：" + (current.grammar || "");
+ document.getElementById("pronunciationResult").classList.add("hidden");
+ document.getElementById("answer").classList.add("hidden");
+ showTab("quiz");
+}
+
+function toggleAnswer(){ document.getElementById("answer").classList.toggle("hidden"); }
+
+function simpleNormalize(s){
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/can't/g, "cant")
+    .replace(/cannot/g, "cant")
+    .replace(/i'll/g, "ill")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function similarity(a,b){
+  const aw = simpleNormalize(a).split(" ").filter(Boolean);
+  const bw = simpleNormalize(b).split(" ").filter(Boolean);
+  if(!aw.length || !bw.length) return 0;
+  let hit = 0;
+  aw.forEach(w => { if(bw.includes(w)) hit++; });
+  return Math.round((hit / aw.length) * 100);
+}
+
+function startPronunciationCheck(){
+  const result = document.getElementById("pronunciationResult");
+  result.className = "box";
+  result.classList.remove("hidden");
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SpeechRecognition){
+    result.textContent = "このブラウザは音声認識に未対応です。Chromeで開いて試してください。";
+    return;
+  }
+  const rec = new SpeechRecognition();
+  rec.lang = "en-US";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  result.textContent = "聞き取り中です。例文を英語で読んでください...";
+  rec.onresult = (event) => {
+    const heard = event.results[0][0].transcript;
+    const score = similarity(current.driver, heard);
+    let advice = "かなり良いです。";
+    let cls = "scoreGood";
+    if(score < 60){ advice = "まだズレがあります。音の塊を見て、ゆっくり再挑戦してください。"; cls = "scoreBad"; }
+    else if(score < 85){ advice = "だいたい通じています。抜けた単語やつながる音を確認してください。"; cls = "scoreMid"; }
+    result.className = "box " + cls;
+    result.textContent = `正解：
+${current.driver}
+
+スマホが聞き取った英語：
+${heard}
+
+一致度：${score}%
+
+アドバイス：
+${advice}
+
+※これは発音の絶対評価ではなく、音声認識にどう聞こえたかの簡易チェックです。`;
+  };
+  rec.onerror = (event) => {
+    result.textContent = "音声認識エラー：" + event.error + "\nマイク許可、Chrome利用、通信状態を確認してください。";
+  };
+  rec.start();
+}
+
+function normalizePhrase(p){
+  return {
+    scene: String(p.scene || "未分類").trim(),
+    driver: String(p.driver || "").trim(),
+    jp: String(p.jp || "").trim(),
+    passenger: String(p.passenger || "").trim(),
+    note: String(p.note || "").trim(),
+    core: String(p.core || "").trim(),
+    grammar: String(p.grammar || "").trim(),
+    sound: String(p.sound || "").trim()
+  };
+}
+
+function addPhrase(){
+ const p=normalizePhrase({scene:fScene.value, driver:fDriver.value, jp:fJp.value, passenger:fPassenger.value, note:fNote.value, core:fCore.value, grammar:fGrammar.value, sound:fSound.value});
+ if(!p.driver || !p.jp) return alert("英語例文と日本語訳は必須です");
+ phrases.unshift(p);
+ if(!categories.includes(p.scene)) categories.push(p.scene);
+ save();
+ fDriver.value=fJp.value=fPassenger.value=fNote.value=fCore.value=fGrammar.value=fSound.value="";
+ showTab("list");
+}
+
+function bulkImport(){
+  const result = document.getElementById("bulkResult");
+  result.classList.remove("hidden");
+  try {
+    const raw = document.getElementById("bulkJson").value.trim();
+    if(!raw) throw new Error("JSONが空です");
+    const data = JSON.parse(raw);
+    if(!Array.isArray(data)) throw new Error("一番外側は [ ] の配列にしてください");
+    const valid = [];
+    const errors = [];
+    data.forEach((item, i) => {
+      const p = normalizePhrase(item);
+      if(!p.driver || !p.jp){
+        errors.push(`${i+1}件目：driver と jp は必須です`);
+      } else {
+        valid.push(p);
+      }
+    });
+    if(valid.length === 0) throw new Error(errors.join("\n") || "追加できるデータがありません");
+    valid.reverse().forEach(p => {
+      phrases.unshift(p);
+      if(!categories.includes(p.scene)) categories.push(p.scene);
+    });
+    save();
+    document.getElementById("bulkJson").value = "";
+    result.textContent = `${valid.length}件を追加しました。` + (errors.length ? `\n\n注意:\n${errors.join("\n")}` : "");
+    refreshUI();
+  } catch(e) {
+    result.textContent = "エラー：\n" + e.message + "\n\nJSONのカンマ抜け、ダブルクォーテーション抜けを確認してください。";
+  }
+}
+
+function fillSample(){
+  document.getElementById("bulkJson").value = JSON.stringify([
+    {
+      scene: "降車位置",
+      driver: "Could I drop you off near the entrance?",
+      jp: "入口の近くで降ろしてもよろしいですか？",
+      passenger: "That’s fine. / Sure.",
+      note: "near the entrance = 入口そのものではなく周辺。",
+      core: "could = 可能性をやわらかくする / near = 近く / entrance = 入口 / drop off = 車で降ろす",
+      grammar: "Could I + 動詞原形 = 私が〜してもいいですか？ near + 場所 = 〜の近く",
+      sound: "クダイ / ドロピュオフ / ニア ジ エントランス"
+    }
+  ], null, 2);
+}
+
+function addCategory(){
+  const input = document.getElementById("newCategory");
+  const name = input.value.trim();
+  if(!name) return alert("カテゴリー名を入力してください");
+  if(categories.includes(name)) return alert("そのカテゴリーはもうあります");
+  categories.push(name);
+  input.value = "";
+  save();
+  refreshUI();
+}
+
+function deleteCategory(name){
+  if(name === "全部") return alert("全部は削除できません");
+  const used = phrases.some(p => p.scene === name);
+  if(used) return alert("このカテゴリーを使っている例文があります。先に例文を別カテゴリーに移してください。");
+  categories = categories.filter(c => c !== name);
+  if(activeScene === name) activeScene = "全部";
+  save();
+  refreshUI();
+}
+
+function renderCategories(){
+  const area = document.getElementById("categoryList");
+  if(!area) return;
+  area.innerHTML = "";
+  categories.forEach(c => {
+    const div = document.createElement("div");
+    div.className = "box";
+    div.innerHTML = `<b>${esc(c)}</b>`;
+    if(c !== "全部"){
+      const btn = document.createElement("button");
+      btn.textContent = "削除";
+      btn.className = "danger";
+      btn.style.marginTop = "8px";
+      btn.onclick = () => deleteCategory(c);
+      div.appendChild(btn);
+    }
+    area.appendChild(div);
+  });
+}
+
+refreshUI();
+</script>
+</body>
+</html>
